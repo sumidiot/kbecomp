@@ -42,6 +42,9 @@ D = 50
 ent = torch.nn.Embedding(len(entIdx), D)
 rel = torch.nn.Embedding(len(relIdx), D)
 
+ew = ent.parameters().next()
+rw = rel.parameters().next()
+
 e_lr = 1e-2
 r_lr = 1e-4
 
@@ -71,19 +74,15 @@ for epoch in range(100):
 	loss.backward()
         e_optimizer.step()
 	r_optimizer.step()
- 
-	ent.train(False)
-	rel.train(False)
-        e_optimizer.zero_grad()
-        r_optimizer.zero_grad()
-        ent.zero_grad()
-        rel.zero_grad()
-	y = (torch.index_select(ent.weight.data, 0, vh) + torch.index_select(rel.weight.data, 0, vr) - torch.index_select(ent.weight.data, 0, vt)).norm(2, dim=1).sum()
-        print y, y-x 
-	x = y
-        ent.zero_grad()
-	rel.zero_grad()
 	e_optimizer.zero_grad()
 	r_optimizer.zero_grad()
-	ent.train(True)
-	rel.train(True)
+
+	en = torch.norm(ent.weight, p=2, dim=1).data
+	ent.weight.data = ent.weight.data.div(en.view(len(entIdx), 1).expand_as(ent.weight))
+ 
+	yh = ent(vh)
+	yr = rel(vr)
+	yt = ent(vt)
+	y = (yh + yr - yt).norm(2, dim=1).sum().data[0]
+        print y, y-x 
+	x = y
